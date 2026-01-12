@@ -6,4 +6,5 @@ export const firebaseConfig = {
     messagingSenderId: "299888628640",
     appId: "1:299888628640:web:caf0535b94e389c7948ac5"
 };
+
 export const IMGBB_KEY = "699042c759021469e38f5370217a808f";
