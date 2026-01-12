@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, limit, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { firebaseConfig, IMGBB_KEY } from "./firebase-config.js";
 
 const app = initializeApp(firebaseConfig);
@@ -39,9 +39,9 @@ async function upload(file) {
 // --- АВТОРИЗАЦИЯ ---
 document.getElementById('toggleAuth').onclick = () => {
     const b = document.getElementById('reg-box');
-    const isLogin = b.style.display === 'none';
-    b.style.display = isLogin ? 'block' : 'none';
-    document.getElementById('toggleAuth').innerText = isLogin ? 'Уже есть аккаунт' : 'Создать аккаунт';
+    const isReg = b.style.display === 'none';
+    b.style.display = isReg ? 'block' : 'none';
+    document.getElementById('toggleAuth').innerText = isReg ? 'Уже есть аккаунт' : 'Создать аккаунт';
 };
 
 document.getElementById('authBtn').onclick = async () => {
@@ -76,9 +76,13 @@ function initFeed() {
         const box = document.getElementById('feed-items'); box.innerHTML = "";
         snaps.forEach(d => {
             const p = d.data();
-            const card = document.createElement('div'); card.className = 'card';
-            card.innerHTML = `<b>${p.user}</b><div style="margin:5px 0">${p.text}</div>${p.url ? `<img src="${p.url}" style="width:100%;border-radius:10px">` : ""}`;
-            box.appendChild(card);
+            box.innerHTML += `<div class="card">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                    <img src="${p.ava}" class="ava" style="width:30px; height:30px;"><b>${p.user}</b>
+                </div>
+                <p style="margin:0">${p.text || ""}</p>
+                ${p.url ? `<img src="${p.url}" class="post-img">` : ""}
+            </div>`;
         });
     });
 }
@@ -96,7 +100,7 @@ document.getElementById('sendPost').onclick = async () => {
     t.value = ""; f.value = ""; document.getElementById('post-input').style.display = 'none';
 };
 
-// --- ПОИСК ---
+// --- ПОИСК И ЧАТЫ ---
 document.getElementById('searchUser').oninput = async (e) => {
     const val = e.target.value.toLowerCase().trim();
     const resBox = document.getElementById('searchRes');
@@ -114,14 +118,12 @@ document.getElementById('searchUser').oninput = async (e) => {
     });
 };
 
-// --- ЧАТЫ ---
 window.openChat = async (otherId, nick, ava) => {
     activeChatId = user.uid < otherId ? user.uid + "_" + otherId : otherId + "_" + user.uid;
     document.getElementById('chat-title').innerText = nick;
     document.getElementById('chat-ava').src = ava;
     document.getElementById('searchRes').style.display = 'none';
     document.getElementById('searchUser').value = "";
-    await setDoc(doc(db, "conversations", activeChatId), { users: [user.uid, otherId], time: serverTimestamp() }, { merge: true });
     window.showScreen('msg');
     initMessages();
 };
@@ -135,14 +137,27 @@ function initChatList() {
             const uDoc = await getDoc(doc(db, "users", otherId));
             if (!uDoc.exists()) continue;
             const other = uDoc.data();
-            const item = document.createElement('div'); item.className = 'chat-item';
+            const item = document.createElement('div'); item.className = 'chat-item'; item.style.marginBottom = "10px";
             item.onclick = () => window.openChat(otherId, other.nick, other.avatar);
-            item.innerHTML = `<img src="${other.avatar}" class="ava"><div class="chat-info"><b>${other.nick}</b><div class="chat-last-msg">${conv.lastMsg || "..."}</div></div><i data-lucide="trash-2" onclick="window.deepDeleteChat('${d.id}', event)" style="color:var(--s);width:16px"></i>`;
+            item.innerHTML = `<img src="${other.avatar}" class="ava"><div class="chat-info">
+                <div class="chat-row"><b>${other.nick}</b><span class="chat-time">${fmtTime(conv.time)}</span></div>
+                <div class="chat-row"><div class="chat-last-msg">${conv.lastMsg || "..."}</div>
+                <div class="delete-btn" onclick="window.deepDeleteChat('${d.id}', event)"><i data-lucide="trash-2" size="16"></i></div></div></div>`;
             list.appendChild(item);
         }
         lucide.createIcons();
     });
 }
+
+window.deepDeleteChat = async (chatId, e) => {
+    e.stopPropagation();
+    if(!confirm("Удалить чат?")) return;
+    const msgs = await getDocs(collection(db, "chats", chatId, "messages"));
+    const batch = writeBatch(db);
+    msgs.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    await deleteDoc(doc(db, "conversations", chatId));
+};
 
 function initMessages() {
     if(msgUnsub) msgUnsub();
@@ -150,8 +165,7 @@ function initMessages() {
         const box = document.getElementById('messages-box'); box.innerHTML = "";
         snaps.forEach(d => {
             const m = d.data();
-            const b = document.createElement('div');
-            b.className = `bubble ${m.uid === user.uid ? 'me' : 'not-me'}`;
+            const b = document.createElement('div'); b.className = `bubble ${m.uid === user.uid ? 'me' : 'not-me'}`;
             b.innerHTML = `${m.text}<span class="msg-time">${fmtTime(m.time)}</span>`;
             box.appendChild(b);
         });
@@ -160,25 +174,16 @@ function initMessages() {
 }
 
 document.getElementById('sendMsg').onclick = async () => {
-    const input = document.getElementById('msgInput');
-    const txt = input.value.trim();
+    const input = document.getElementById('msgInput'), txt = input.value.trim();
     if(!txt || !activeChatId) return;
     const cid = activeChatId; input.value = "";
     await addDoc(collection(db, "chats", cid, "messages"), { text: txt, uid: user.uid, time: serverTimestamp() });
     await setDoc(doc(db, "conversations", cid), { lastMsg: txt, time: serverTimestamp(), users: cid.split('_') }, { merge: true });
 };
 
-window.deepDeleteChat = async (chatId, e) => {
-    e.stopPropagation();
-    if(confirm("Удалить чат?")) await deleteDoc(doc(db, "conversations", chatId));
-};
-
+// ГЛОБАЛЬНЫЕ ФУНКЦИИ
 window.logout = () => signOut(auth).then(() => location.reload());
-window.toggleTheme = () => {
-    const isLight = document.body.dataset.theme === 'light';
-    document.body.dataset.theme = isLight ? 'dark' : 'light';
-};
-
+window.toggleTheme = () => document.body.dataset.theme = document.body.dataset.theme === 'light' ? 'dark' : 'light';
 document.getElementById('deleteAccBtn').onclick = async () => {
     if(confirm("Удалить аккаунт?")) {
         await deleteDoc(doc(db, "users", user.uid));
@@ -186,3 +191,4 @@ document.getElementById('deleteAccBtn').onclick = async () => {
         location.reload();
     }
 };
+lucide.createIcons();
