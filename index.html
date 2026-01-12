@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#18181b">
+    <title>Directo Pro</title>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="auth-screen">
+        <div class="card auth-card">
+            <h1 class="logo-text">Directo</h1>
+            <input type="email" id="email" placeholder="Email" class="input-field full-width">
+            <input type="password" id="pass" placeholder="Пароль" class="input-field full-width">
+            <div id="reg-box" style="display:none">
+                <input type="text" id="nick" placeholder="Никнейм" class="input-field full-width">
+            </div>
+            <button class="btn-circle full-width" id="authBtn">Продолжить</button>
+            <p id="toggleAuth" class="toggle-link">Создать аккаунт</p>
+        </div>
+    </div>
+
+    <div id="scr-feed" class="screen active">
+        <div class="header">Лента <i data-lucide="plus-circle" id="addPostBtn"></i></div>
+        <div id="post-input" class="post-input-container" style="display:none;">
+            <div class="flex-row">
+                <label class="btn-circle gray-btn"><i data-lucide="image" size="18"></i><input type="file" id="postFile" hidden></label>
+                <input type="text" id="postText" placeholder="Что нового?" class="input-field">
+                <button class="btn-circle" id="sendPost"><i data-lucide="send" size="18"></i></button>
+            </div>
+        </div>
+        <div class="content-scroll" id="feed-items"></div>
+    </div>
+
+    <div id="scr-chats" class="screen">
+        <div class="header">Чаты</div>
+        <div class="search-container">
+            <div class="search-bar">
+                <i data-lucide="search" size="18"></i>
+                <input type="text" id="searchUser" placeholder="Поиск пользователей..." class="input-field no-border">
+            </div>
+            <div class="search-res" id="searchRes"></div>
+        </div>
+        <div class="content-scroll" id="chat-list"></div>
+    </div>
+
+    <div id="scr-msg" class="screen">
+        <div class="header">
+            <div class="flex-row align-center">
+                <i data-lucide="chevron-left" onclick="showScreen('chats')" class="pointer"></i>
+                <img id="chat-ava" class="ava chat-header-ava">
+                <span id="chat-title">Чат</span>
+            </div>
+        </div>
+        <div class="content-scroll" id="messages-box"></div>
+        <div class="input-zone">
+            <input type="text" id="msgInput" placeholder="Сообщение..." class="input-field">
+            <button class="btn-circle" id="sendMsg"><i data-lucide="arrow-up"></i></button>
+        </div>
+    </div>
+
+    <div id="scr-prof" class="screen">
+        <div class="header">Профиль</div>
+        <div class="content-scroll profile-center">
+            <img id="myPic" class="ava profile-ava">
+            <h2 id="myNickDisplay">Username</h2>
+            <button class="card menu-item" onclick="toggleTheme()">Тема <i data-lucide="moon"></i></button>
+            <button class="card menu-item" onclick="logout()">Выйти</button>
+            <button class="card menu-item danger-text" id="deleteAccBtn">Удалить аккаунт</button>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        <div class="nav-item active" onclick="showScreen('feed', this)"><i data-lucide="home"></i>Лента</div>
+        <div class="nav-item" onclick="showScreen('chats', this)"><i data-lucide="message-square"></i>Чаты</div>
+        <div class="nav-item" onclick="showScreen('prof', this)"><i data-lucide="user"></i>Профиль</div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
